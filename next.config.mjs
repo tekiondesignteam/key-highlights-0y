@@ -1,11 +1,5 @@
-git add .
-git commit -m "Fix basePath for GitHub Pages deployment"
-git push origin main
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  trailingSlash: true,
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -13,10 +7,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true
+    unoptimized: true,
   },
-  basePath: process.env.NODE_ENV === 'production' ? '/key-highlights-0y' : '',
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/key-highlights-0y/' : '',
 }
 
 export default nextConfig
