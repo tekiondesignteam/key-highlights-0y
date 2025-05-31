@@ -1,3 +1,7 @@
+git add .
+git commit -m "Fix basePath for GitHub Pages deployment"
+git push origin main
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
