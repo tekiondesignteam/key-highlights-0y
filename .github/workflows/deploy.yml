@@ -1,9 +1,3 @@
-git add package-lock.json .github/workflows/deploy.yml
-git commit -m "Add package-lock.json and fix deployment workflow"
-git push origin main
-
-
-
 name: Deploy to GitHub Pages
 
 on:
