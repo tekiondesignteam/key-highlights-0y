@@ -1,11 +1,14 @@
 "use client"
-import { ArrowLeft, Eye, EyeOff, Home, X } from "lucide-react"
+import { ArrowLeft, Eye, EyeOff, X, Download, Plus } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import ImageCropper from "../../components/image-cropper"
 import { usePresentationStore, type PresentationConfig } from "../../lib/use-presentation-store"
 import RichTextEditor from "../../components/rich-text-editor"
 import ModuleIcon from "../../components/module-icon"
+import PDFExporter from "../../components/pdf-exporter"
+import { usePasswordStore } from "../../lib/password-store"
+import PasswordProtection from "../../components/password-protection"
 
 const colorOptions = [
   { name: "Blue", value: "bg-blue-500" },
@@ -34,8 +37,15 @@ const iconOptions = [
 ]
 
 export default function AdminPage() {
+  // All hooks must be called at the top level, before any conditional returns
+  const { isAuthenticated, isLoading, authenticate } = usePasswordStore()
   const { config, setConfig, isLoaded } = usePresentationStore()
   const [activeTab, setActiveTab] = useState<"intro" | string>("intro")
+  const [showPDFExporter, setShowPDFExporter] = useState(false)
+  const [lastAddedFeature, setLastAddedFeature] = useState<{ moduleIndex: number; featureIndex: number } | null>(null)
+
+  // Ref for the newly added feature
+  const newFeatureRef = useRef<HTMLDivElement>(null)
 
   const updateIntroTitle = (title: string) => {
     setConfig((prev: PresentationConfig) => ({ ...prev, introTitle: title }))
@@ -78,6 +88,12 @@ export default function AdminPage() {
   }
 
   const addFeature = (modIndex: number) => {
+    const module = config.modules[modIndex]
+    if (module.features.length >= 4) {
+      alert("Maximum 4 features allowed per module")
+      return
+    }
+
     setConfig((prev: PresentationConfig) => ({
       ...prev,
       modules: prev.modules.map((mod, i) =>
@@ -98,7 +114,40 @@ export default function AdminPage() {
           : mod,
       ),
     }))
+
+    // Set the last added feature to scroll to it
+    setLastAddedFeature({
+      moduleIndex: modIndex,
+      featureIndex: module.features.length,
+    })
   }
+
+  // Effect to scroll to the newly added feature
+  useEffect(() => {
+    if (lastAddedFeature) {
+      const element = newFeatureRef.current
+      if (element) {
+        // Scroll the new feature into view with smooth behavior
+        element.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        })
+
+        // Add a highlight effect
+        element.classList.add("bg-green-50")
+
+        // Remove highlight after animation
+        setTimeout(() => {
+          if (element) {
+            element.classList.remove("bg-green-50")
+          }
+        }, 1500)
+
+        // Clear the last added feature reference
+        setLastAddedFeature(null)
+      }
+    }
+  }, [lastAddedFeature])
 
   const removeFeature = (modIndex: number, featureIndex: number) => {
     setConfig((prev: PresentationConfig) => ({
@@ -143,12 +192,13 @@ export default function AdminPage() {
     setConfig((prev: PresentationConfig) => ({ ...prev, thankYouDescription: description }))
   }
 
-  if (!isLoaded) {
-    return (
-      <div className="w-full min-h-screen bg-gray-100 p-6 flex items-center justify-center">
-        <p className="text-gray-500">Loading admin panel...</p>
-      </div>
-    )
+  // Add update functions for statement slide
+  const updateStatementTitle = (title: string) => {
+    setConfig((prev: PresentationConfig) => ({ ...prev, statementTitle: title }))
+  }
+
+  const updateStatementDescription = (description: string) => {
+    setConfig((prev: PresentationConfig) => ({ ...prev, statementDescription: description }))
   }
 
   const renderIntroContent = () => (
@@ -271,18 +321,45 @@ export default function AdminPage() {
           {mod.visible && (
             <div>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">Features</h3>
-                <button
-                  onClick={() => addFeature(moduleIndex)}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                >
-                  Add Feature
-                </button>
+                <h3 className="text-lg font-semibold text-gray-800">Features ({mod.features.length}/4)</h3>
+                {mod.features.length < 4 && (
+                  <button
+                    onClick={() => addFeature(moduleIndex)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Feature
+                  </button>
+                )}
               </div>
 
               <div className="space-y-4">
+                {/* Add Feature button at the start if no features */}
+                {mod.features.length === 0 && (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <button
+                      onClick={() => addFeature(moduleIndex)}
+                      className="flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors mx-auto"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Add Feature
+                    </button>
+                    <p className="text-sm text-gray-500 mt-2">Add your first feature to get started</p>
+                  </div>
+                )}
+
                 {mod.features.map((feature, featureIndex) => (
-                  <div key={featureIndex} className="border border-gray-200 rounded-lg p-4">
+                  <div
+                    key={featureIndex}
+                    className="border border-gray-200 rounded-lg p-4 transition-all duration-500"
+                    ref={
+                      lastAddedFeature &&
+                      lastAddedFeature.moduleIndex === moduleIndex &&
+                      lastAddedFeature.featureIndex === featureIndex
+                        ? newFeatureRef
+                        : null
+                    }
+                  >
                     <div className="flex justify-between items-start mb-4">
                       <h4 className="font-medium text-gray-700">Feature {featureIndex + 1}</h4>
                       <button
@@ -341,6 +418,29 @@ export default function AdminPage() {
                     </div>
                   </div>
                 ))}
+
+                {/* Add Feature button at the bottom if features exist and less than 4 */}
+                {mod.features.length > 0 && mod.features.length < 4 && (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <button
+                      onClick={() => addFeature(moduleIndex)}
+                      className="flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors mx-auto"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Add Feature
+                    </button>
+                    <p className="text-sm text-gray-500 mt-2">
+                      {4 - mod.features.length} more feature{4 - mod.features.length !== 1 ? "s" : ""} allowed
+                    </p>
+                  </div>
+                )}
+
+                {/* Max features reached message */}
+                {mod.features.length === 4 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                    <p className="text-sm text-amber-700">Maximum of 4 features reached for this module</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -380,7 +480,57 @@ export default function AdminPage() {
     </div>
   )
 
-  // Update the return statement to make navigation sticky and content scrollable
+  // Add statement content renderer
+  const renderStatementContent = () => (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Statement Slide Configuration</h2>
+        <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+            <input
+              type="text"
+              value={config.statementTitle}
+              onChange={(e) => updateStatementTitle(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#00BFA5]"
+              placeholder="Enter statement title..."
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+            <RichTextEditor
+              value={config.statementDescription}
+              onChange={(value) => updateStatementDescription(value)}
+              placeholder="Enter statement description..."
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  // Now handle conditional rendering after all hooks are called
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+        <div className="text-white text-lg">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <PasswordProtection onAuthenticate={authenticate} />
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="w-full min-h-screen bg-gray-100 p-6 flex items-center justify-center">
+        <p className="text-gray-500">Loading admin panel...</p>
+      </div>
+    )
+  }
+
+  // Main admin interface
   return (
     <div className="w-full min-h-screen bg-gray-100 flex">
       {/* Left Sidebar - Fixed */}
@@ -389,13 +539,22 @@ export default function AdminPage() {
         <div className="p-6 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-bold text-gray-900">Presentation Admin</h1>
-            <Link
-              href="/"
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-              title="Back to Presentation"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowPDFExporter(true)}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                title="Export as PDF"
+              >
+                <Download className="w-5 h-5" />
+              </button>
+              <Link
+                href="/"
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                title="Back to Presentation"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+            </div>
           </div>
           <p className="text-sm text-gray-600">
             Visible modules: {config.modules.filter((mod) => mod.visible).length}/10
@@ -414,8 +573,25 @@ export default function AdminPage() {
                   : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
               }`}
             >
-              <Home className="w-5 h-5 flex-shrink-0" />
+              <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
+                <span className="text-lg">🏠</span>
+              </div>
               <span className="font-medium">Intro Slide</span>
+            </button>
+
+            {/* Statement Tab */}
+            <button
+              onClick={() => setActiveTab("statement")}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                activeTab === "statement"
+                  ? "bg-[#00BFA5] text-white"
+                  : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+            >
+              <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
+                <span className="text-lg">📋</span>
+              </div>
+              <span className="font-medium">Statement Slide</span>
             </button>
 
             {/* Module Tabs */}
@@ -437,7 +613,7 @@ export default function AdminPage() {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{mod.module}</div>
                     <div className={`text-xs ${activeTab === `module-${index}` ? "text-white/70" : "text-gray-500"}`}>
-                      {mod.features.length} feature{mod.features.length !== 1 ? "s" : ""}
+                      {mod.features.length}/4 features
                     </div>
                   </div>
                   <div className="flex-shrink-0">
@@ -469,10 +645,14 @@ export default function AdminPage() {
       <div className="flex-1 ml-80 overflow-y-auto h-screen">
         <div className="p-8">
           {activeTab === "intro" && renderIntroContent()}
+          {activeTab === "statement" && renderStatementContent()}
           {activeTab === "thankyou" && renderThankYouContent()}
           {activeTab.startsWith("module-") && renderModuleContent(Number.parseInt(activeTab.split("-")[1]))}
         </div>
       </div>
+
+      {/* PDF Exporter Modal */}
+      {showPDFExporter && <PDFExporter config={config} onClose={() => setShowPDFExporter(false)} />}
     </div>
   )
 }

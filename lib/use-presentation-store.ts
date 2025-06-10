@@ -22,6 +22,8 @@ export interface PresentationConfig {
   introTitle: string
   introSubtitle: string
   heroImage: string
+  statementTitle: string
+  statementDescription: string
   thankYouTitle: string
   thankYouDescription: string
   modules: Module[]
@@ -31,6 +33,9 @@ const defaultConfig: PresentationConfig = {
   introTitle: "June Release",
   introSubtitle: "Discover the latest features and improvements",
   heroImage: "/placeholder.svg?height=600&width=400&text=Hero+Image",
+  statementTitle: "Terms & Conditions",
+  statementDescription:
+    "By accessing this presentation, you agree to maintain confidentiality of all information presented. This content is proprietary and intended for authorized personnel only.",
   thankYouTitle: "Thank You",
   thankYouDescription: "Questions & Discussion",
   modules: [
@@ -260,6 +265,14 @@ export function usePresentationStore() {
         }
         if (!parsedConfig.thankYouDescription) {
           parsedConfig.thankYouDescription = "Questions & Discussion"
+        }
+        // Add statement fields if they don't exist (for backward compatibility)
+        if (!parsedConfig.statementTitle) {
+          parsedConfig.statementTitle = "Terms & Conditions"
+        }
+        if (!parsedConfig.statementDescription) {
+          parsedConfig.statementDescription =
+            "By accessing this presentation, you agree to maintain confidentiality of all information presented. This content is proprietary and intended for authorized personnel only."
         }
         // Ensure all modules have icon and visible properties
         if (parsedConfig.modules) {
